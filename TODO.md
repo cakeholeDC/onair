@@ -47,5 +47,4 @@ home_assistant_entities:
 ```
 
 CLEANUP
-- setup release actions
 - improve go test coverage

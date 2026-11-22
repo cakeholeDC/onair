@@ -3,10 +3,8 @@ name: Static Analysis
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - main
-  
+  workflow_call:
+
 permissions:
   contents: read
 
@@ -14,7 +12,7 @@ jobs:
   golang-lint:
     strategy:
       fail-fast: true
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     steps:
       #----------------------------------------------
       # Check-out repo
@@ -27,12 +25,11 @@ jobs:
       - name: 🛠️ Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version: '1.26.11'
       #----------------------------------------------
       # Run golangci-lint
       #----------------------------------------------
       - name: 🧹 Run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1
-          config: .golangci.yml
+          version: v2.15.0

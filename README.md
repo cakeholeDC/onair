@@ -39,6 +39,24 @@ This app can be deployed as a User Agent (launchd LaunchAgent) to run on an inte
     onair --status
     ```
 
+### Install from a GitHub release
+
+Download the `darwin-arm64` archive for Apple Silicon or the `darwin-amd64` archive for Intel from the [releases page](https://github.com/cakeholeDC/onair/releases). Download `SHA256SUMS` alongside the archive. In the download directory, verify and install the binary, replacing the example archive name with the one you downloaded.
+
+```sh
+archive=onair-v2.0.0-darwin-arm64.tar.gz
+awk -v archive="$archive" '$2 == archive { print; found = 1 } END { if (!found) exit 1 }' SHA256SUMS | shasum -a 256 -c &&
+  tar -xzf "$archive" onair &&
+  mkdir -p "$HOME/.local/bin" &&
+  install -m 755 onair "$HOME/.local/bin/onair"
+```
+
+Continue with `onair config --create` to configure the app.
+
+### Cut a release
+
+Update `VERSION` to the next version tag, such as `v2.1.0`, in the PR for that release. GitHub Actions builds the macOS archives on the PR. After merging to `main`, the **macOS Release** workflow publishes the binaries and checksums for the merged commit once lint, tests, and both builds pass. If publishing fails, rerun the failed jobs to reuse the build artifacts.
+
 ## Services
 
 - [Config](#config)
