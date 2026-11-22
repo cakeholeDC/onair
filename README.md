@@ -1,6 +1,5 @@
 # ONAIR 🎙️🚨
-![static-analysis](https://github.com/cakeholeDC/on-air/actions/workflows/static-analysis.yml/badge.svg)
-![unit-tests](https://github.com/cakeholeDC/on-air/actions/workflows/unit-test.yml/badge.svg)
+[![macOS CI](https://github.com/cakeholeDC/onair/actions/workflows/release.yaml/badge.svg?branch=main&event=push)](https://github.com/cakeholeDC/onair/actions/workflows/release.yaml)
 
 **onair** is an application for interacting with IoT devices. Along with manual control, this application can detect whether the systems camera or microphone are enabled and turn on an indicator light. 
 
