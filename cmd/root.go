@@ -131,6 +131,7 @@ func init() {
 	)
 }
 
-func Execute() {
+func Execute(version string) {
+	rootCmd.Version = version
 	rootCmd.Execute()
 }

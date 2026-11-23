@@ -5,6 +5,8 @@
 
 This app can be deployed as a User Agent (launchd LaunchAgent) to run on an interval.
 
+Run `onair -v` or `onair --version` to check the installed version.
+
 ## Dependencies
 -  macOS Monterey 12.7+
 - [homebrew](https://brew.sh/) => `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
