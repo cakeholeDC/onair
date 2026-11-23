@@ -12,7 +12,7 @@ jobs:
   golang-lint:
     strategy:
       fail-fast: true
-    runs-on: macos-15
+    runs-on: ubuntu-latest
     steps:
       #----------------------------------------------
       # Check-out repo
