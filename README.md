@@ -54,7 +54,9 @@ Continue with `onair config --create` to configure the app.
 
 ### Cut a release
 
-Update `VERSION` to the next version tag, such as `v2.1.0`, in the PR for that release. GitHub Actions builds the macOS archives on the PR. After merging to `main`, the **macOS Release** workflow publishes the binaries and checksums for the merged commit once lint, tests, and both builds pass. If publishing fails, rerun the failed jobs to reuse the build artifacts.
+Use Conventional Commit titles when squash-merging PRs to `main`. Release Please opens or updates a release PR with the proposed version and changelog. If GitHub prompts you to approve workflow runs on the bot's PR, approve them so lint, tests, and both macOS builds can run.
+
+Merge the release PR when its checks pass and you're ready to ship. The **macOS Release** workflow runs the checks on the merged commit, creates a draft through Release Please, and then publishes it with both archives and checksums. If publishing fails, rerun the failed jobs to reuse the build artifacts.
 
 ## Services
 

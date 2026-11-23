@@ -2,6 +2,17 @@
 set -euo pipefail
 
 tag=$1
+endpoint="repos/$GH_REPO/releases"
+release=$(gh api --paginate --slurp "$endpoint?per_page=100" | jq -c --arg tag "$tag" '
+  [.[][] | select(.tag_name == $tag)]
+  | if length <= 1 then .[0] else error("Multiple releases have the same tag") end
+')
+
+if [[ $2 == --lookup ]]; then
+  jq -r '.id // empty' <<< "$release"
+  exit 0
+fi
+
 commit=$2
 cd "$3"
 
@@ -24,17 +35,11 @@ verify_tag() {
   fi
 }
 
-endpoint="repos/$GH_REPO/releases"
 verify_tag
-release=$(gh api --paginate --slurp "$endpoint?per_page=100" | jq -c --arg tag "$tag" '
-  [.[][] | select(.tag_name == $tag)]
-  | if length <= 1 then .[0] else error("Multiple releases have the same tag") end
-')
 
 if [[ $release == null ]]; then
-  release=$(gh api --method POST "$endpoint" \
-    -f tag_name="$tag" -f target_commitish="$commit" -f name="$tag" \
-    -F draft=true -F generate_release_notes=true)
+  echo "Release Please did not create draft release $tag." >&2
+  exit 1
 elif [[ $(jq -r .draft <<< "$release") == false ]]; then
   if [[ $tag_commit == "$commit" ]]; then
     echo "Release $tag is already published for $commit."

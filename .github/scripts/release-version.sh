@@ -3,19 +3,29 @@ set -euo pipefail
 
 before=$1
 commit=$2
+manifest=.release-please-manifest.json
 
-# A branch creation event has no previous commit to compare.
-if [[ $before != 0000000000000000000000000000000000000000 ]]; then
-  changed=$(git diff --name-only "$before" "$commit" -- VERSION)
-  if [[ -z $changed ]]; then
-    exit 0
-  fi
+if [[ $before == 0000000000000000000000000000000000000000 ]]; then
+  exit 0
 fi
 
-tag=$(git show "$commit:VERSION")
-if [[ ! $tag =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-  echo 'VERSION must contain a stable version such as v2.0.0.' >&2
+changed=$(git diff --name-only "$before" "$commit" -- "$manifest")
+if [[ -z $changed ]]; then
+  exit 0
+fi
+
+version=$(git show "$commit:$manifest" | jq -er '.["."] | strings')
+if [[ ! $version =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+  echo 'The Release Please manifest must contain a stable version such as 2.0.0.' >&2
   exit 1
 fi
 
-printf 'tag=%s\n' "$tag"
+# Adding the manifest establishes the baseline for the first release PR.
+if [[ -z $(git ls-tree --name-only "$before" -- "$manifest") ]]; then
+  exit 0
+fi
+
+previous=$(git show "$before:$manifest" | jq -er '.["."] | strings')
+if [[ $version != "$previous" ]]; then
+  printf 'tag=v%s\n' "$version"
+fi

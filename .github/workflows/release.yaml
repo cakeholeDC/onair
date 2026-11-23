@@ -5,17 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   lint:
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/static-analysis.yaml
 
   test:
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/unit-test.yaml
 
   version:
@@ -30,10 +31,25 @@ jobs:
       - name: Check release scripts
         run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
       - name: Detect version change
+        if: github.event_name != 'workflow_dispatch'
         id: version
         env:
           BEFORE_SHA: ${{ github.event.before || github.event.pull_request.base.sha }}
         run: bash .github/scripts/release-version.sh "$BEFORE_SHA" "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+  propose:
+    name: Update release PR
+    needs: [lint, test, version]
+    if: github.ref == 'refs/heads/main' && needs.version.outputs.tag == ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          skip-github-release: true
 
   build:
     name: Build macOS (${{ matrix.arch }})
@@ -84,6 +100,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     concurrency:
       group: onair-release-${{ needs.version.outputs.tag }}
       cancel-in-progress: false
@@ -96,6 +114,20 @@ jobs:
           pattern: onair-darwin-*
           path: dist
           merge-multiple: true
+      - name: Look for an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          release_id=$(bash .github/scripts/publish-release.sh "$TAG" --lookup)
+          printf 'id=%s\n' "$release_id" >> "$GITHUB_OUTPUT"
+      - name: Create draft with Release Please
+        if: steps.existing.outputs.id == ''
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          skip-github-pull-request: true
       - name: Publish verified artifacts
         env:
           GH_TOKEN: ${{ github.token }}

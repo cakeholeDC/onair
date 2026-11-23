@@ -11,12 +11,20 @@ SCRIPTS = Path(__file__).resolve().parent
 TAG = "v2.0.0"
 COMMIT = "a" * 40
 OTHER_COMMIT = "b" * 40
+MANIFEST = ".release-please-manifest.json"
 ARCHIVES = [f"onair-{TAG}-darwin-{arch}.tar.gz" for arch in ("arm64", "amd64")]
 
 GIT = """#!/bin/bash
 case "$1" in
   diff) printf '%s' "$CHANGED" ;;
-  show) printf '%s' "$VERSION_CONTENTS" ;;
+  show)
+    if [[ "$2" == "$CURRENT_COMMIT:$MANIFEST" ]]; then
+      printf '%s' "$VERSION_CONTENTS"
+    else
+      printf '%s' "$PREVIOUS_CONTENTS"
+    fi
+    ;;
+  ls-tree) printf '%s' "$PREVIOUS_MANIFEST" ;;
   ls-remote) printf '%s' "$REMOTE_REFS" ;;
   *) exit 2 ;;
 esac
@@ -25,10 +33,6 @@ esac
 GH = """#!/bin/bash
 case "$1 $2 $3" in
   'api --paginate --slurp') printf '[[%s]]' "$EXISTING_RELEASE" ;;
-  'api --method POST')
-    printf '%s\\n' "$*" >> "$CALL_LOG"
-    printf '%s' "$NEW_RELEASE"
-    ;;
   'api --method PATCH'|'release upload '*) printf '%s\\n' "$*" >> "$CALL_LOG" ;;
   *) exit 2 ;;
 esac
@@ -44,11 +48,14 @@ class ReleaseTest(unittest.TestCase):
         self.env = {
             **os.environ,
             "PATH": f"{self.root}:{os.environ['PATH']}",
-            "CHANGED": "VERSION",
-            "VERSION_CONTENTS": TAG,
+            "CURRENT_COMMIT": COMMIT,
+            "MANIFEST": MANIFEST,
+            "CHANGED": MANIFEST,
+            "VERSION_CONTENTS": json.dumps({".": TAG[1:]}),
+            "PREVIOUS_CONTENTS": json.dumps({".": "1.0.0"}),
+            "PREVIOUS_MANIFEST": MANIFEST,
             "REMOTE_REFS": "",
-            "EXISTING_RELEASE": "",
-            "NEW_RELEASE": json.dumps(self.release()),
+            "EXISTING_RELEASE": json.dumps(self.release()),
             "CALL_LOG": str(self.log),
             "GH_REPO": "example/onair",
         }
@@ -81,21 +88,44 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "")
 
+    def test_version_skips_initial_manifest(self):
+        self.env["PREVIOUS_MANIFEST"] = ""
+        result = self.invoke("release-version.sh", OTHER_COMMIT, COMMIT)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_version_skips_manifest_edit_with_same_version(self):
+        self.env["PREVIOUS_CONTENTS"] = self.env["VERSION_CONTENTS"]
+        result = self.invoke("release-version.sh", OTHER_COMMIT, COMMIT)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
     def test_version_rejects_invalid_tag(self):
-        self.env["VERSION_CONTENTS"] = "v02.0.0\nextra=output"
+        self.env["VERSION_CONTENTS"] = json.dumps({".": "02.0.0\nextra=output"})
         result = self.invoke("release-version.sh", OTHER_COMMIT, COMMIT)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
 
-    def test_publish_creates_draft_at_exact_commit_before_uploads(self):
+    def test_publish_looks_up_existing_draft(self):
+        result = self.invoke("publish-release.sh", TAG, "--lookup")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "123\n")
+        self.assertFalse(self.log.exists())
+
+    def test_publish_requires_a_release_please_draft(self):
+        self.env["EXISTING_RELEASE"] = ""
+        result = self.publish()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("did not create draft", result.stderr)
+        self.assertFalse(self.log.exists())
+
+    def test_publish_uploads_all_assets_before_publishing(self):
         result = self.publish()
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.log.read_text().splitlines()
-        self.assertIn(f"target_commitish={COMMIT}", calls[0])
-        self.assertIn("draft=true", calls[0])
-        self.assertEqual(calls[1:4], [f"release upload {TAG} {asset}"
+        self.assertEqual(calls[:3], [f"release upload {TAG} {asset}"
                                      for asset in [*ARCHIVES, "SHA256SUMS"]])
-        self.assertIn("releases/123 -F draft=false", calls[4])
+        self.assertIn("releases/123 -F draft=false", calls[3])
 
     def test_publish_refuses_tag_on_different_commit(self):
         self.env["REMOTE_REFS"] = f"{OTHER_COMMIT}\trefs/tags/{TAG}"
