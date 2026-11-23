@@ -37,6 +37,7 @@ jobs:
             test
             hass
             config
+            main
           # Require a scope to be provided
           requireScope: false
           disallowScopes: |
