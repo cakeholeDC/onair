@@ -28,7 +28,7 @@ func Test_GetHelp(t *testing.T) {
 
 	// NOTE: It's important that we call the 'Execute()' function defined
 	// by root.go , rather than 'cmd.Execute()'
-	Execute()
+	Execute("")
 	out, err := io.ReadAll(b)
 	if err != nil {
 		t.Fatal(err)

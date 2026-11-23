@@ -87,6 +87,10 @@ jobs:
           tar -czf "$archive" -C bundle onair LICENSE
           tar -xzf "$archive" -C smoke
           smoke/onair --help
+          actual_version=$(smoke/onair --version)
+          expected_version="onair version ${TAG#v}"
+          printf 'Packaged version is %s (expected %s)\n' "$actual_version" "$expected_version"
+          test "$actual_version" = "$expected_version"
       - uses: actions/upload-artifact@v4
         with:
           name: onair-darwin-${{ matrix.arch }}
