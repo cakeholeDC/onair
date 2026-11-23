@@ -34,7 +34,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         id: version
         env:
-          BEFORE_SHA: ${{ github.event.before || github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: bash .github/scripts/release-version.sh "$BEFORE_SHA" "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
   propose:

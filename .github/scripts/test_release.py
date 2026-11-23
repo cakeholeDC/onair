@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -40,6 +41,20 @@ esac
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_workflow_compares_pr_base_after_branch_rewrite(self):
+        workflow = (SCRIPTS.parent / "workflows" / "release.yaml").read_text()
+        expression = re.search(r"BEFORE_SHA: \$\{\{ (.+?) \}\}", workflow).group(1)
+        # Both SHAs exist in a PR synchronize payload, even when the previous
+        # head commit has become unreachable after the bot rewrites its branch.
+        for event, context, expected in [
+            ("pull_request", {"github.event.before": "unreachable-head",
+                              "github.event.pull_request.base.sha": OTHER_COMMIT}, OTHER_COMMIT),
+            ("push", {"github.event.before": OTHER_COMMIT}, OTHER_COMMIT),
+        ]:
+            with self.subTest(event=event):
+                candidates = [context.get(path.strip()) for path in expression.split("||")]
+                self.assertEqual(next(filter(None, candidates)), expected)
+
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
